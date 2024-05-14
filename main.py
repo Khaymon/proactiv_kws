@@ -5,11 +5,10 @@ import torch
 import numpy as np
 import cv2
 
-from spinalvgg import SpinalVGG
+from model import Spotter
 from data_loader import ImageDatasetFromPt
 from trainable_tensor import TrainableTensor
 from utils import save_data
-from matplotlib import pyplot as plt
 from params import get_params
 
 '''
@@ -55,33 +54,10 @@ def input_optimize(model, data_loader, params):
             if epoch % 50 == 0 or epoch == params["num_iters"] - 1:
                 print("Batch: ", index, "; Epoch: ", epoch, "; Loss: ", np.round(loss.item(), 4))
 
-            if params["plotinterim_checkpoint"] > 0 and (epoch % params["plotinterim_checkpoint"] == 0 or epoch == params["num_iters"] - 1):
-                plot_interim(batch['input'], trainable_input.tensor, index, epoch)
-
         outputs         = model(trainable_input.tensor)
         save_data(log_subdir, index, trainable_input.tensor, outputs, batch['target'], 'projected')
 
 
-def plot_interim(transformed_imgs, interim_projected_imgs, batch, iter):
-
-    for imgid in range(transformed_imgs.shape[0]):
-        transform_img   = transformed_imgs[imgid, 0, :, :].data.cpu().numpy()
-        transform_img   = cv2.rotate(cv2.flip(transform_img, 1), cv2.ROTATE_90_COUNTERCLOCKWISE)
-        proj_img        = interim_projected_imgs[imgid, 0, :, :].data.cpu().numpy()
-        proj_img        = cv2.rotate(cv2.flip(proj_img, 1), cv2.ROTATE_90_COUNTERCLOCKWISE)
-        diff_img        = transform_img - proj_img
-
-        fig, ax         = plt.subplots(1, 3, figsize=(10, 6))
-        ax[0].imshow(transform_img, cmap='gray')
-        ax[0].set_title('Transformed')
-        ax[1].imshow(proj_img, cmap='gray')
-        ax[1].set_title('Projected')
-        plot            = ax[2].imshow(diff_img, cmap='bwr')
-        ax[2].set_title('Transformed - Projected')
-        fig.suptitle("Batch: " + str(batch) + "; Iter: " + str(iter))
-        fig.colorbar(plot, fraction=0.046, pad=0.04)
-        plt.show()
-        break
 
 if __name__ == '__main__':
     params              = get_params() #set the traing params in params.py
@@ -93,7 +69,7 @@ if __name__ == '__main__':
                                                                                                            (0.3081,))])
 
     #load pretrained model. We do not change the weights of these.
-    model               = SpinalVGG().to(device)
+    model               = Spotter(40, 512, 256, 3).to(device)
     checkpoint          = torch.load(params["pretrained_model_path"], map_location=lambda storage,
                                                                                                           loc: storage)
     model.load_state_dict(checkpoint['state_dict'])
